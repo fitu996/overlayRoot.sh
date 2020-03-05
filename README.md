@@ -25,6 +25,7 @@ The upstream project is only compatible with Raspbian and has not been updated f
 2. To temporary disable overlayRoot.sh, add `noOverlayRoot` to your kernel parameter.
 3. Double-check your `/etc/fstab`, this script will get rootfs mount point information from it. only UUID, PARTUUID, LABLE and raw device is supported but use PARTUUID remain not recommended.
 4. If you use this script and stuck at the emergency shell or something similar, change your boot parameter back.
+5. Some distribution is extremely Non-POSIX during init (such as Nix OS). Do not use this script.
 ## The script will stop working:
 1. On some distributions whose init executable is not `/sbin/init`.
 2. On some distributions doesn't have `/etc/fstab` or doesn't have it during the very early stage of init.
