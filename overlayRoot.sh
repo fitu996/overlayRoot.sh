@@ -78,8 +78,8 @@ fi
 for x in $(cat /proc/cmdline); do
     if [ "x$x" = "xquiet" ] ; then
         loglevel=0
-    elif echo "$x" | grep -q "^loglevel=" ; then
-        loglevel="$(echo "$x" | cut -d = -f 2-)"
+    elif printf "%s\n" "$x" | grep -q "^loglevel=" ; then
+        loglevel="$(printf "%s\n" "$x" | cut -d = -f 2-)"
     elif [ "x$x" = "xnoOverlayRoot" ] ; then
         write_log 6 "overlayRoot is disabled. continue init process."
         exec /sbin/init "$@"
@@ -88,7 +88,7 @@ done
 if [ "$loglevel" = 99 ] ; then
     loglevel=4
 fi
-write_log 6 "starting overlayRoot..."
+write_log 5 "starting overlayRoot..."
 write_log 6 "test overlayFS compatibility"
 modprobe overlay || true
 mount -t tmpfs none /mnt || fail "ERROR: kernel missing tmpfs functionality"
@@ -116,22 +116,22 @@ if ! blkid $rootDev ; then
     write_log 5 "root device in fstab is not block device file"
     write_log 6 "try if fstab contains a LABEL definition"
     rootDevFstab="$rootDev"
-    rootDev="$( echo "$rootDev" | sed 's/^LABEL=//g' )"
+    rootDev="$( printf "%s\n" "$rootDev" | sed 's/^LABEL=//g' )"
     rootDev="$( blkid -L "$rootDev" )"
     if [ $? -gt 0 ]; then
         write_log 5 "root device in fstab is not partition label"
         write_log 6 "try if fstab contains a PARTUUID definition"
-        if ! echo "$rootDevFstab" | grep 'PARTUUID=\(.*\)-\([0-9]\{2\}\)' > /dev/null ; then 
+        if ! printf "%s\n" "$rootDevFstab" | grep 'PARTUUID=\(.*\)-\([0-9]\{2\}\)' > /dev/null ; then 
             write_log 5 "root device in fstab is not PARTUUID"
             write_log 6 "try if fstab contains a UUID definition"
-            if ! echo "$rootDevFstab" | grep '^UUID=[0-9a-zA-Z-]*$' > /dev/null ; then
+            if ! printf "%s\n" "$rootDevFstab" | grep '^UUID=[0-9a-zA-Z-]*$' > /dev/null ; then
                 write_log 5 "no success, try if a filesystem with label 'rootfs' is avaialble"
                 rootDev="$(blkid -L "rootfs")"
                 if [ $? -gt 0 ]; then
                     fail "could not find a root filesystem device in fstab. Make sure that fstab contains a valid device definition for / or that the root filesystem has a label 'rootfs' assigned to it"
                 fi
             else
-                rootDev="$(blkid -U "$(echo "$rootDevFstab" | sed 's/^UUID=\([0-9a-zA-Z-]*\)$/\1/')")"
+                rootDev="$(blkid -U "$(printf "%s\n" "$rootDevFstab" | sed 's/^UUID=\([0-9a-zA-Z-]*\)$/\1/')")"
                 if [ $? -gt 0 ]; then
                     fail "The UUID entry in fstab could not be converted into a valid device name. Make sure that fstab contains a valid device definition for / or that the root filesystem has a label 'rootfs' assigned to it"
                 fi
@@ -140,7 +140,7 @@ if ! blkid $rootDev ; then
             write_log 4 "WARNING: The use of PARTUUID in overlayRoot.sh is deprecated. It cannot handle every circumstances."
             device=""
             partition=""
-            eval `echo "$rootDevFstab" | sed -e 's/PARTUUID=\(.*\)-\([0-9]\{2\}\)/device=\1;partition=\2/'`
+            eval `printf "%s\n" "$rootDevFstab" | sed -e 's/PARTUUID=\(.*\)-\([0-9]\{2\}\)/device=\1;partition=\2/'`
             rootDev=`blkid -t "PTUUID=$device" | awk -F : '{print $1}'`p$(($partition))
             blkid $rootDev
             if [ $? -gt 0 ]; then
@@ -151,10 +151,10 @@ if ! blkid $rootDev ; then
 fi
 write_log 6 "mount root filesystem readonly"
 originaRoot="$(mount | grep -F "${rootDev}" | while read -r line ; do
-    [ "$(echo "${line}" | cut -c "-$(expr length "${rootDev}")")" = "${rootDev}" ] || continue
-    echo "${line}" | sed 's/^.* on \(.*\) type .*(.*)/\1/g'
+    [ "$(printf "%s\n" "${line}" | cut -c "-$(expr length "${rootDev}")")" = "${rootDev}" ] || continue
+    printf "%s\n" "${line}" | sed 's/^.* on \(.*\) type .*(.*)/\1/g'
 done)"
-if [ "$(echo "${originaRoot}" | wc -l)" -gt 1 ] ; then
+if [ "$(printf "%s\n" "${originaRoot}" | wc -l)" -gt 1 ] ; then
     write_log 4 "WARNING: could not determine where the original root partition mounted at. Treating it as not mounted."
     originaRoot=""
 fi
