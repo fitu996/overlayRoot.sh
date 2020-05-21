@@ -37,14 +37,10 @@ The upstream project is only compatible with Raspbian and has not been updated f
 - Some distribution is extremely Non-POSIX during init (such as Nix OS). Do not use this script.
 # Troubleshooting
 - Failed on some distributions whose init executable is not `/sbin/init`.
-
-FIX: You can simply replace all `/sbin/init` to the value your distribution use in the script (for example: `sed -i 's|/sbin/init|/init|g' overlayRoot.sh`).
+> FIX: Simply replace all `/sbin/init` in this script to the value of your distribution use (for example: `sed -i 's|/sbin/init|/init|g' overlayRoot.sh`).
 - Failed on some distributions doesn't have `/etc/fstab` or doesn't have it during the very early stage of init.
-
-FIX: Manually add rootfs mount information in your `/etc/fstab`.
+> FIX: Manually add rootfs mount information in your `/etc/fstab`.
 - Failed on some kernel that not support OverlayFS.
-
-FIX: Use another kernel. Change distribution. etc...
+> FIX: Use another kernel. Change distribution. etc...
 - Failed on some distributions call main init executable (like systemd/openrc/sysv) in initramfs.
-
-FIX: Move this script to initramfs.
+> FIX: Move this script to initramfs.

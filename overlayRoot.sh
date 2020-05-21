@@ -12,7 +12,8 @@
 #       fit other distributions. reformat the script to a more simple style.
 #  1.3: add support for UUID in fstab. deprecated PARTUUID support because it's not safe to handle every
 #       circumstances. rename /ro to /lower and /rw to /overlay. fix permission issue on /overlay. fix
-#       "already mounted on /" issue on some distributions. add log interface and increase log verbosity.
+#       "already mounted on /" issue on some distributions(caused by mawk). add log interface and increase
+#       log verbosity.
 #
 #  Created 2017 by Pascal Suter @ DALCO AG, Switzerland to work on Raspian as custom init script
 #  (raspbian does not use an initramfs on boot)
