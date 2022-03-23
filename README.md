@@ -35,7 +35,7 @@ The upstream project is only compatible with Raspbian and has not been updated f
 - Double-check your `/etc/fstab`, this script will get rootfs mount point information from it. only UUID, PARTUUID, LABLE and raw device is supported but use PARTUUID remain not recommended.
 - If you use this script and stuck at the emergency shell or something similar, change your boot parameter back.
 - Some distribution is extremely Non-POSIX during init (such as Nix OS). Do not use this script.
-# Troubleshooting
+# Troubleshooting/FAQ
 - Failed on some distributions whose init executable is not `/sbin/init`.
 > FIX: Simply replace all `/sbin/init` in this script to the value of your distribution use (for example: `sed -i 's|/sbin/init|/init|g' overlayRoot.sh`).
 - Failed on some distributions doesn't have `/etc/fstab` or doesn't have it during the very early stage of init.
@@ -44,3 +44,5 @@ The upstream project is only compatible with Raspbian and has not been updated f
 > FIX: Use another kernel. Change distribution. etc...
 - Failed on some distributions call main init executable (like systemd/openrc/sysv) in initramfs.
 > FIX: Move this script to initramfs.
+- More questions?
+> Ask me on Issues or Discussions.
