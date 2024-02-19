@@ -1,19 +1,20 @@
 #!/bin/sh
 #  Read-only Root-FS for most linux distributions using overlayfs
-#  Version 1.3
+#  Version 1.4
 #
 #  Version History:
 #  1.0: initial release
-#  1.1: adopted new fstab style with PARTUUID. the script will now look for a /dev/xyz definiton first 
+#  1.1: adopted new fstab style with PARTUUID. the script will now look for a /dev/xyz definiton first
 #       (old raspbian), if that is not found, it will look for a partition with LABEL=rootfs, if that
 #       is not found it look for a PARTUUID string in fstab for / and convert that to a device name
-#       using the blkid command. 
+#       using the blkid command.
 #  1.2: clean useless lines in fstab before read it. do not mount /proc if already mounted. some fixes to
 #       fit other distributions. reformat the script to a more simple style.
 #  1.3: add support for UUID in fstab. deprecated PARTUUID support because it's not safe to handle every
 #       circumstances. rename /ro to /lower and /rw to /overlay. fix permission issue on /overlay. fix
 #       "already mounted on /" issue on some distributions(caused by mawk). add log interface and increase
 #       log verbosity.
+#  1.4: fix "ERROR: could not umount old root" when "\0" is not properly escaped.
 #
 #  Created 2017 by Pascal Suter @ DALCO AG, Switzerland to work on Raspian as custom init script
 #  (raspbian does not use an initramfs on boot)
@@ -36,26 +37,26 @@
 #
 #  Tested with Raspbian mini, 2018-10-09
 #
-#  This script will mount the root filesystem read-only and overlay it with a temporary tempfs 
-#  which is read-write mounted. This is done using the overlayFS which is part of the linux kernel 
-#  since version 3.18. 
-#  when this script is in use, all changes made to anywhere in the root filesystem mount will be lost 
+#  This script will mount the root filesystem read-only and overlay it with a temporary tempfs
+#  which is read-write mounted. This is done using the overlayFS which is part of the linux kernel
+#  since version 3.18.
+#  when this script is in use, all changes made to anywhere in the root filesystem mount will be lost
 #  upon reboot of the system. The SD card will only be accessed as read-only drive, which significantly
 #  helps to prolong its life and prevent filesystem coruption in environments where the system is usually
-#  not shut down properly 
+#  not shut down properly
 #
-#  Install: 
-#  copy this script to /sbin/overlayRoot.sh, make it executable and add "init=/sbin/overlayRoot.sh" to the 
-#  cmdline.txt file in the raspbian image's boot partition. 
-#  I strongly recommend to disable swapping before using this. it will work with swap but that just does 
+#  Install:
+#  copy this script to /sbin/overlayRoot.sh, make it executable and add "init=/sbin/overlayRoot.sh" to the
+#  cmdline.txt file in the raspbian image's boot partition.
+#  I strongly recommend to disable swapping before using this. it will work with swap but that just does
 #  not make sens as the swap file will be stored in the tempfs which again resides in the ram.
 #  run these commands on the booted raspberry pi BEFORE you set the init=/sbin/overlayRoot.sh boot option:
 #  sudo dphys-swapfile swapoff
 #  sudo dphys-swapfile uninstall
 #  sudo update-rc.d dphys-swapfile remove
 #
-#  To install software, run upgrades and do other changes to the raspberry setup, simply remove the init= 
-#  entry from the cmdline.txt file and reboot, make the changes, add the init= entry and reboot once more. 
+#  To install software, run upgrades and do other changes to the raspberry setup, simply remove the init=
+#  entry from the cmdline.txt file and reboot, make the changes, add the init= entry and reboot once more.
 
 loglevel="99"
 write_log(){
@@ -122,7 +123,7 @@ if ! blkid $rootDev ; then
     if [ $? -gt 0 ]; then
         write_log 5 "root device in fstab is not partition label"
         write_log 6 "try if fstab contains a PARTUUID definition"
-        if ! printf "%s\n" "$rootDevFstab" | grep 'PARTUUID=\(.*\)-\([0-9]\{2\}\)' > /dev/null ; then 
+        if ! printf "%s\n" "$rootDevFstab" | grep 'PARTUUID=\(.*\)-\([0-9]\{2\}\)' > /dev/null ; then
             write_log 5 "root device in fstab is not PARTUUID"
             write_log 6 "try if fstab contains a UUID definition"
             if ! printf "%s\n" "$rootDevFstab" | grep '^UUID=[0-9a-zA-Z-]*$' > /dev/null ; then
@@ -174,10 +175,10 @@ mount -t overlay -o lowerdir=/mnt/lower,upperdir=/mnt/overlay/upper,workdir=/mnt
 write_log 6 "create mountpoints inside the new root filesystem-overlay"
 mkdir /mnt/newroot/lower
 mkdir /mnt/newroot/overlay
-write_log 6 "remove root mount from fstab (this is already a non-permanent modification)"
-echo "# the original root mount has been removed by overlayRoot.sh" > /mnt/newroot/etc/fstab
-echo "# this is only a temporary modification, the original fstab" >> /mnt/newroot/etc/fstab
-echo "# stored on the disk can be found in /lower/etc/fstab" >> /mnt/newroot/etc/fstab
+write_log 6 "remove root mount from fstab (this is not a permanent modification)"
+echo "# the root mount point has been removed by overlayRoot.sh" > /mnt/newroot/etc/fstab
+echo "# this is a temporary copy. the original fstab stored on the" >> /mnt/newroot/etc/fstab
+echo "# disk can be found at /lower/etc/fstab" >> /mnt/newroot/etc/fstab
 grep -v -x -E '^(#.*)|([[:space:]]*)$' /mnt/lower/etc/fstab | awk '$2 != "/" {print}' >> /mnt/newroot/etc/fstab
 write_log 6 "change to the new overlay root"
 cd /mnt/newroot
@@ -203,7 +204,7 @@ mount --move /mnt/proc /proc || \
     fail "ERROR: could not move proc mount into newroot"
 mount --move /mnt/dev /dev || true
 write_log 6 "unmount unneeded mounts so we can unmout the old readonly root"
-mount | sed -E -e 's/^.* on //g' -e 's/ type .*\$//g' | grep -x '^/mnt.*\$' | sort -r | while read xx ; do echo -n "\$xx\0" ; done | xargs -0 -n 1 umount || \
+mount | sed -E -e 's/^.* on //g' -e 's/ type .*\$//g' | grep -x '^/mnt.*\$' | sort -r | while read xx ; do printf '%s\\0' "\$xx" ; done | xargs -0 -n 1 umount || \
     fail "ERROR: could not umount old root"
 write_log 6 "continue with regular init"
 exec /sbin/init "\$@"
