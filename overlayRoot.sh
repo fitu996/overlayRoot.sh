@@ -1,6 +1,6 @@
 #!/bin/sh
 #  Read-only Root-FS for most linux distributions using overlayfs
-#  Version 1.4
+#  Version 1.5
 #
 #  Version History:
 #  1.0: initial release
@@ -15,10 +15,12 @@
 #       "already mounted on /" issue on some distributions(caused by mawk). add log interface and increase
 #       log verbosity.
 #  1.4: fix "ERROR: could not umount old root" when "\0" is not properly escaped.
+#  1.5: Add default $PATH, some command in /usr/sbin directory
 #
 #  Created 2017 by Pascal Suter @ DALCO AG, Switzerland to work on Raspian as custom init script
 #  (raspbian does not use an initramfs on boot)
-#  Update 1.2 and 1.3 by fitu996@github
+#  Update 1.2 ~ 1.4 by fitu996@github
+#  Update 1.5 by LeosDing@github
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -57,6 +59,8 @@
 #
 #  To install software, run upgrades and do other changes to the raspberry setup, simply remove the init=
 #  entry from the cmdline.txt file and reboot, make the changes, add the init= entry and reboot once more.
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
 loglevel="99"
 write_log(){
@@ -104,8 +108,9 @@ mount -t tmpfs inittemp /mnt || \
     fail "ERROR: could not create a temporary filesystem to mount the base filesystems for overlayfs"
 mkdir /mnt/lower
 mkdir /mnt/overlay
+
 mount -t tmpfs root-rw /mnt/overlay || \
-    fail "ERROR: could not create tempfs for upper filesystem"
+    fail "ERROR: could not create tmpfs for upper filesystem"
 mkdir /mnt/overlay/upper
 mkdir /mnt/overlay/work
 mkdir /mnt/newroot
