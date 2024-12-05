@@ -1,6 +1,6 @@
 #!/bin/sh
 #  Read-only Root-FS for most linux distributions using overlayfs
-#  Version 1.5
+#  Version 1.6
 #
 #  Version History:
 #  1.0: initial release
@@ -16,6 +16,7 @@
 #       log verbosity.
 #  1.4: fix "ERROR: could not umount old root" when "\0" is not properly escaped.
 #  1.5: Add default $PATH, some command in /usr/sbin directory
+#  1.6: Add support for NFS based root filesystems
 #
 #  Created 2017 by Pascal Suter @ DALCO AG, Switzerland to work on Raspian as custom init script
 #  (raspbian does not use an initramfs on boot)
@@ -75,6 +76,23 @@ fail(){
         fi
 }
 
+search_nfs_rootfs_info(){
+    local file="$1"
+    get_rootfs_info_in_file "/etc/mtab"
+    nfs="`echo $rootFsType | grep "nfs"`"
+    if [ ! -z "$rootDev" ] && [ ! -z "$nfs" ]; then
+        return 0
+    fi
+    return 1
+}
+
+get_rootfs_info_in_file(){
+    local file="$1"
+    rootDev="`grep -v -x -E '^(#.*)|([[:space:]]*)$' "$file" | awk '$2 == "/" {print $1}'`"
+    rootMountOpt="`grep -v -x -E '^(#.*)|([[:space:]]*)$' "$file" | awk '$2 == "/" {print $4}'`"
+    rootFsType="`grep -v -x -E '^(#.*)|([[:space:]]*)$' "$file" | awk '$2 == "/" {print $3}'`"
+}
+
 # mount /proc
 if ! mount | grep -x 'proc on /proc type proc.*' > /dev/null ; then
     mount -t proc proc /proc || \
@@ -115,11 +133,16 @@ mkdir /mnt/overlay/upper
 mkdir /mnt/overlay/work
 mkdir /mnt/newroot
 write_log 6 "find rootfs informations."
-rootDev="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $1}'`"
-rootMountOpt="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $4}'`"
-rootFsType="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $3}'`"
-write_log 6 "check if we can locate the root device based on fstab"
-if ! blkid $rootDev ; then
+
+if ! search_nfs_rootfs_info ; then
+    get_rootfs_info_in_file "/etc/fstab"
+    write_log 6 "check if we can locate the root device based on fstab"
+else
+    write_log 6 "NFS root found. rootDev: $rootDev fsType: $rootFsType"
+    nfsFound=1
+fi
+
+if [ $nfsFound -ne 1 ] && [ ! blkid $rootDev ] ; then
     write_log 5 "root device in fstab is not block device file"
     write_log 6 "try if fstab contains a LABEL definition"
     rootDevFstab="$rootDev"
