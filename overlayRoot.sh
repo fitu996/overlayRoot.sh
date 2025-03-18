@@ -1,6 +1,6 @@
 #!/bin/sh
 #  Read-only Root-FS for most linux distributions using overlayfs
-#  Version 1.5
+#  Version 1.6
 #
 #  Version History:
 #  1.0: initial release
@@ -16,11 +16,13 @@
 #       log verbosity.
 #  1.4: fix "ERROR: could not umount old root" when "\0" is not properly escaped.
 #  1.5: Add default $PATH, some command in /usr/sbin directory
+#  1.6: Add support for NFS based root filesystems
 #
 #  Created 2017 by Pascal Suter @ DALCO AG, Switzerland to work on Raspian as custom init script
 #  (raspbian does not use an initramfs on boot)
 #  Update 1.2 ~ 1.4 by fitu996@github
-#  Update 1.5 by LeosDing@github
+#  Update 1.5 by LeosDing@github review&modified by fitu996@github
+#  Update 1.6 by mad-jrodriguez@github review&modified by fitu996@github
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -74,6 +76,11 @@ fail(){
             exit 1
         fi
 }
+grep_mnt(){
+    grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab || :
+    grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/mtab || :
+    grep -v -x -E '^(#.*)|([[:space:]]*)$' /proc/self/mounts || :
+}
 
 # mount /proc
 if ! mount | grep -x 'proc on /proc type proc.*' > /dev/null ; then
@@ -115,11 +122,15 @@ mkdir /mnt/overlay/upper
 mkdir /mnt/overlay/work
 mkdir /mnt/newroot
 write_log 6 "find rootfs informations."
-rootDev="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $1}'`"
-rootMountOpt="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $4}'`"
-rootFsType="`grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab | awk '$2 == "/" {print $3}'`"
-write_log 6 "check if we can locate the root device based on fstab"
-if ! blkid $rootDev ; then
+rootDev="`grep_mnt | awk '$2 == "/" {print $1;exit}'`"
+rootMountOpt="`grep_mnt | awk '$2 == "/" {print $4;exit}'`"
+rootFsType="`grep_mnt | awk '$2 == "/" {print $3;exit}'`"
+write_log 6 "check if we can locate the root device from fstab and mtab"
+if blkid "$rootDev"; then
+    :
+elif printf '%s\n' "$rootFsType" | grep -q -F -e nfs -e nfs4 -e cifs -e ramfs -e tmpfs -e smbfs -e ncpfs -e virtiofs -e 9p ; then
+    :
+else
     write_log 5 "root device in fstab is not block device file"
     write_log 6 "try if fstab contains a LABEL definition"
     rootDevFstab="$rootDev"
