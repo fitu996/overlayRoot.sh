@@ -103,7 +103,7 @@ if [ "$loglevel" = 99 ] ; then
 fi
 write_log 5 "starting overlayRoot..."
 write_log 6 "test overlayFS compatibility"
-modprobe overlay || true
+modprobe overlay || :
 mount -t tmpfs none /mnt || fail "ERROR: kernel missing tmpfs functionality"
 mkdir -p /mnt/lower /mnt/overlay/upper /mnt/overlay/work /mnt/newroot
 mount -t overlay -o lowerdir=/mnt/lower,upperdir=/mnt/overlay/upper,workdir=/mnt/overlay/work overlayfs-root /mnt/newroot || \
@@ -128,9 +128,7 @@ rootFsType="`grep_mnt | awk '$2 == "/" {print $3;exit}'`"
 write_log 6 "check if we can locate the root device from fstab and mtab"
 if blkid "$rootDev"; then
     :
-elif printf '%s\n' "$rootFsType" | grep -q -F -e nfs -e nfs4 -e cifs -e ramfs -e tmpfs -e smbfs -e ncpfs -e virtiofs -e 9p ; then
-    :
-else
+elif printf '%s\n' "$rootFsType" | grep -q -F -e ext2 -e ext3 -e ext4 -e btrfs -e xfs -e f2fs -e reiserfs -e squashfs -e ufs ; then
     write_log 5 "root device in fstab is not block device file"
     write_log 6 "try if fstab contains a LABEL definition"
     rootDevFstab="$rootDev"
@@ -218,7 +216,7 @@ mount --move /mnt/mnt/overlay /overlay || \
 chmod 755 /overlay
 mount --move /mnt/proc /proc || \
     fail "ERROR: could not move proc mount into newroot"
-mount --move /mnt/dev /dev || true
+mount --move /mnt/dev /dev || :
 write_log 6 "unmount unneeded mounts so we can unmout the old readonly root"
 mount | sed -E -e 's/^.* on //g' -e 's/ type .*\$//g' | grep -x '^/mnt.*\$' | sort -r | while read xx ; do printf '%s\\0' "\$xx" ; done | xargs -0 -n 1 umount || \
     fail "ERROR: could not umount old root"
