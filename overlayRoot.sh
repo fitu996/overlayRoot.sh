@@ -78,8 +78,7 @@ fail(){
 }
 grep_mnt(){
     grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/fstab || :
-    grep -v -x -E '^(#.*)|([[:space:]]*)$' /etc/mtab || :
-    grep -v -x -E '^(#.*)|([[:space:]]*)$' /proc/self/mounts || :
+    cat /proc/self/mounts /etc/mtab || :
 }
 
 # mount /proc
